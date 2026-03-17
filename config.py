@@ -94,3 +94,16 @@ PROFILE_KEYWORDS: list[str] = [
     "apprentissage automatique",
     "modèle",
 ]
+
+# Placeholder selectors — fill in real values in Task 8 after browser inspection
+SELECTORS = {
+    "card": ".offre-card",
+    "title": ".offre-card__title",
+    "company": ".offre-card__company",
+    "country": ".offre-card__country",
+    "city": ".offre-card__city",
+    "duration": ".offre-card__duration",
+    "start_date": ".offre-card__start-date",
+    "posted_date": ".offre-card__posted-date",
+    "link": "a",
+}
