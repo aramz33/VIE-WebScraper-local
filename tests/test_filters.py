@@ -1,4 +1,4 @@
-from filters import is_target_country, score_offer
+from filters import is_target_country, score_offer, filter_offers
 
 
 def test_accepts_singapore():
@@ -74,3 +74,36 @@ def test_score_offer_word_boundary_no_false_positives():
     result = score_offer(offer)
     assert "rest" not in result["matched_keywords"]
     assert "rag" not in result["matched_keywords"]
+
+
+def test_filter_offers_removes_non_target_countries():
+    offers = [
+        {"title": "Data Scientist Python", "description": "ML project", "country": "Singapour"},
+        {"title": "Data Analyst", "description": "SQL analysis", "country": "Allemagne"},
+    ]
+    result = filter_offers(offers)
+    assert len(result) == 1
+    assert result[0]["country"] == "Singapour"
+
+
+def test_filter_offers_removes_zero_score():
+    offers = [
+        {"title": "Data Scientist Python", "description": "ML cloud AWS", "country": "Japon"},
+        {"title": "Responsable RH", "description": "Recrutement et formation", "country": "Espagne"},
+    ]
+    result = filter_offers(offers)
+    assert len(result) == 1
+    assert result[0]["title"] == "Data Scientist Python"
+
+
+def test_filter_offers_sorted_by_score_desc():
+    offers = [
+        {"title": "Python Developer", "description": "python api rest", "country": "Canada"},
+        {"title": "ML Engineer", "description": "machine learning deep learning python nlp aws cloud data science", "country": "Singapour"},
+    ]
+    result = filter_offers(offers)
+    assert result[0]["score"] >= result[1]["score"]
+
+
+def test_filter_offers_empty_list():
+    assert filter_offers([]) == []

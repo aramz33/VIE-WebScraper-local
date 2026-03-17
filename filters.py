@@ -20,3 +20,9 @@ def score_offer(offer: dict) -> dict:
         "score": len(matched),
         "matched_keywords": matched,
     }
+
+
+def filter_offers(offers: list[dict]) -> list[dict]:
+    scored = [score_offer(o) for o in offers if is_target_country(o.get("country", ""))]
+    matching = [o for o in scored if o["score"] > 0]
+    return sorted(matching, key=lambda o: o["score"], reverse=True)
