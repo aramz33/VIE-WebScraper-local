@@ -38,14 +38,19 @@ def extract_offers_from_page(page: Page) -> list[dict]:
     return raw_offers
 
 
-def scroll_until_loaded(page: Page) -> None:
+def scroll_until_loaded(page: Page, stable_threshold: int = 3) -> None:
     previous_count = 0
+    stable_rounds = 0
     for _ in range(MAX_SCROLL_ATTEMPTS):
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         page.wait_for_timeout(SCROLL_PAUSE_MS)
         current_count = len(page.query_selector_all(SELECTORS["card"]))
         if current_count == previous_count:
-            break
+            stable_rounds += 1
+            if stable_rounds >= stable_threshold:
+                break
+        else:
+            stable_rounds = 0
         previous_count = current_count
 
 
