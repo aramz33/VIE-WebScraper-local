@@ -7,7 +7,8 @@ OUTPUT_DIR = Path("output")
 def get_output_file() -> Path:
     return OUTPUT_DIR / f"offres_{date.today().isoformat()}.csv"
 
-BASE_URL = "https://mon-vie-via.businessfrance.fr/offres"
+BASE_DOMAIN = "https://mon-vie-via.businessfrance.fr"
+BASE_URL = f"{BASE_DOMAIN}/offres"
 
 MAX_SCROLL_ATTEMPTS = 50
 SCROLL_PAUSE_MS = 1500
@@ -105,5 +106,6 @@ SELECTORS = {
     "duration": ".offre-card__duration",
     "start_date": ".offre-card__start-date",
     "posted_date": ".offre-card__posted-date",
+    "description": ".offre-card__description",
     "link": "a",
 }

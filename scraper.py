@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from playwright.sync_api import sync_playwright, Page
 
-from config import BASE_URL, MAX_SCROLL_ATTEMPTS, SCROLL_PAUSE_MS, PAGE_LOAD_TIMEOUT_MS, SELECTORS
+from config import BASE_DOMAIN, BASE_URL, MAX_SCROLL_ATTEMPTS, SCROLL_PAUSE_MS, PAGE_LOAD_TIMEOUT_MS, SELECTORS
 
 OFFER_FIELDS = ["title", "company", "country", "city", "description", "duration", "start_date", "posted_date", "url"]
 
@@ -23,13 +23,13 @@ def extract_offers_from_page(page: Page) -> list[dict]:
         link_el = card.query_selector(SELECTORS["link"])
         url = link_el.get_attribute("href") if link_el else ""
         if url and not url.startswith("http"):
-            url = f"https://mon-vie-via.businessfrance.fr{url}"
+            url = f"{BASE_DOMAIN}{url}"
         raw_offers.append(parse_offer_card({
             "title": _get_element_text(card, SELECTORS["title"]),
             "company": _get_element_text(card, SELECTORS["company"]),
             "country": _get_element_text(card, SELECTORS["country"]),
             "city": _get_element_text(card, SELECTORS["city"]),
-            "description": _get_element_text(card, SELECTORS.get("description", "")),
+            "description": _get_element_text(card, SELECTORS["description"]),
             "duration": _get_element_text(card, SELECTORS["duration"]),
             "start_date": _get_element_text(card, SELECTORS["start_date"]),
             "posted_date": _get_element_text(card, SELECTORS["posted_date"]),
@@ -52,10 +52,11 @@ def scroll_until_loaded(page: Page) -> None:
 def scrape_all_offers() -> list[dict]:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-        page.goto(BASE_URL, timeout=PAGE_LOAD_TIMEOUT_MS)
-        page.wait_for_selector(SELECTORS["card"], timeout=PAGE_LOAD_TIMEOUT_MS)
-        scroll_until_loaded(page)
-        offers = extract_offers_from_page(page)
-        browser.close()
-    return offers
+        try:
+            page = browser.new_page()
+            page.goto(BASE_URL, timeout=PAGE_LOAD_TIMEOUT_MS)
+            page.wait_for_selector(SELECTORS["card"], timeout=PAGE_LOAD_TIMEOUT_MS)
+            scroll_until_loaded(page)
+            return extract_offers_from_page(page)
+        finally:
+            browser.close()

@@ -1,4 +1,7 @@
-from scraper import parse_offer_card
+from unittest.mock import MagicMock
+
+from config import SELECTORS
+from scraper import extract_offers_from_page, parse_offer_card
 
 
 def test_parse_offer_card_full():
@@ -37,10 +40,6 @@ def test_parse_offer_card_strips_whitespace():
     assert result["country"] == "Espagne"
 
 
-from unittest.mock import MagicMock
-from scraper import extract_offers_from_page
-
-
 def _make_mock_card(title="Data Scientist", company="Airbus", country="Singapour",
                     city="Singapore", duration="12 mois", start_date="01/06/2026",
                     posted_date="15/03/2026", href="/offres/123"):
@@ -56,14 +55,15 @@ def _make_mock_card(title="Data Scientist", company="Airbus", country="Singapour
 
     def query_selector_side_effect(sel):
         mapping = {
-            ".offre-card__title": make_text_el(title),
-            ".offre-card__company": make_text_el(company),
-            ".offre-card__country": make_text_el(country),
-            ".offre-card__city": make_text_el(city),
-            ".offre-card__duration": make_text_el(duration),
-            ".offre-card__start-date": make_text_el(start_date),
-            ".offre-card__posted-date": make_text_el(posted_date),
-            "a": link_el,
+            SELECTORS["title"]: make_text_el(title),
+            SELECTORS["company"]: make_text_el(company),
+            SELECTORS["country"]: make_text_el(country),
+            SELECTORS["city"]: make_text_el(city),
+            SELECTORS["duration"]: make_text_el(duration),
+            SELECTORS["start_date"]: make_text_el(start_date),
+            SELECTORS["posted_date"]: make_text_el(posted_date),
+            SELECTORS["description"]: make_text_el(""),
+            SELECTORS["link"]: link_el,
         }
         return mapping.get(sel, None)
 
