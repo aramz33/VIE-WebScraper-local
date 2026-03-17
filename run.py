@@ -4,7 +4,7 @@ from config import OUTPUT_DIR, get_output_file
 from filters import filter_offers
 from scraper import scrape_all_offers
 
-CSV_COLUMNS = [
+CSV_COLUMNS: list[str] = [
     "score", "matched_keywords", "title", "company",
     "country", "city", "duration", "start_date", "posted_date", "url", "description",
 ]
@@ -12,7 +12,11 @@ CSV_COLUMNS = [
 
 def main() -> None:
     print("Scraping https://mon-vie-via.businessfrance.fr/offres...")
-    raw_offers = scrape_all_offers()
+    try:
+        raw_offers = scrape_all_offers()
+    except Exception as exc:
+        print(f"Scraping failed: {exc}")
+        raise SystemExit(1)
     print(f"  → {len(raw_offers)} offers extracted")
 
     filtered = filter_offers(raw_offers)
@@ -24,8 +28,9 @@ def main() -> None:
 
     output_file = get_output_file()
     OUTPUT_DIR.mkdir(exist_ok=True)
-    df = pd.DataFrame(filtered, columns=CSV_COLUMNS)
-    df["matched_keywords"] = df["matched_keywords"].apply(lambda kws: ", ".join(kws))
+    df = pd.DataFrame(filtered, columns=CSV_COLUMNS).assign(
+        matched_keywords=lambda d: d["matched_keywords"].apply(lambda kws: ", ".join(kws))
+    )
     df.to_csv(output_file, index=False, encoding="utf-8")
     print(f"  → Saved to {output_file}")
 
