@@ -2,7 +2,10 @@ from pathlib import Path
 from datetime import date
 
 OUTPUT_DIR = Path("output")
-OUTPUT_FILE = OUTPUT_DIR / f"offres_{date.today().isoformat()}.csv"
+
+
+def get_output_file() -> Path:
+    return OUTPUT_DIR / f"offres_{date.today().isoformat()}.csv"
 
 BASE_URL = "https://mon-vie-via.businessfrance.fr/offres"
 

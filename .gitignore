@@ -1,4 +1,10 @@
 output/
+!output/.gitkeep
 *.csv
 __pycache__/
 .pytest_cache/
+.venv/
+venv/
+.env
+.idea/
+*.pyc
