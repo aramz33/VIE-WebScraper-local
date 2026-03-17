@@ -1,4 +1,4 @@
-from config import TARGET_COUNTRIES, PROFILE_KEYWORDS
+from config import TARGET_COUNTRIES
 
 
 def is_target_country(country: str) -> bool:
