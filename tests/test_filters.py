@@ -1,4 +1,3 @@
-import pytest
 from filters import is_target_country, score_offer
 
 
@@ -40,9 +39,9 @@ def test_case_insensitive():
 
 
 def test_score_offer_matches_python():
-    offer = {"title": "Développeur Python Data", "description": "Mission Python et machine learning"}
+    offer = {"title": "Développeur Python", "description": "Mission machine learning"}
     result = score_offer(offer)
-    assert result["score"] >= 2
+    assert result["score"] == 2
     assert "python" in result["matched_keywords"]
     assert "machine learning" in result["matched_keywords"]
 
@@ -69,9 +68,9 @@ def test_score_offer_preserves_original_fields():
     assert result["title"] == "Data Scientist"
 
 
-def test_score_offer_deduplicates_keywords():
-    # "data science" and "data scientist" both appear; if they match, score should count each once
-    offer = {"title": "Data Scientist", "description": "data science python"}
+def test_score_offer_word_boundary_no_false_positives():
+    # "rest" should not match "restaurant", "rag" should not match "garage"
+    offer = {"title": "Restaurant Manager", "description": "Gestion du garage et du storage"}
     result = score_offer(offer)
-    # Score should not be inflated by duplicates
-    assert result["score"] == len(result["matched_keywords"])
+    assert "rest" not in result["matched_keywords"]
+    assert "rag" not in result["matched_keywords"]
