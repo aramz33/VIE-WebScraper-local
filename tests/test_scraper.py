@@ -1,103 +1,123 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from config import SELECTORS
-from scraper import extract_offers_from_page, parse_offer_card
+from scraper import map_offer, scrape_all_offers
 
 
-def test_parse_offer_card_full():
-    mock_card = {
-        "title": "Data Scientist",
-        "company": "TotalEnergies",
-        "country": "Singapour",
-        "city": "Singapore",
-        "description": "Mission data science et ML",
-        "duration": "12 mois",
-        "start_date": "01/06/2026",
-        "posted_date": "15/03/2026",
-        "url": "https://mon-vie-via.businessfrance.fr/offres/12345",
+def _raw_offer(**overrides) -> dict:
+    base = {
+        "id": 123,
+        "missionTitle": "Data Scientist",
+        "organizationName": "TotalEnergies",
+        "countryName": "SINGAPOUR",
+        "cityName": "Singapore",
+        "missionDescription": "Mission data science et ML",
+        "missionProfile": "Python, SQL requis",
+        "missionDuration": 12,
+        "missionStartDate": "2026-06-01T00:00:00",
+        "creationDate": "2026-03-15T10:00:00Z",
     }
-    result = parse_offer_card(mock_card)
+    return {**base, **overrides}
+
+
+def test_map_offer_full():
+    result = map_offer(_raw_offer())
     assert result["title"] == "Data Scientist"
     assert result["company"] == "TotalEnergies"
-    assert result["country"] == "Singapour"
-    assert result["url"] == "https://mon-vie-via.businessfrance.fr/offres/12345"
+    assert result["country"] == "singapour"
+    assert result["city"] == "Singapore"
+    assert result["duration"] == "12"
+    assert result["start_date"] == "2026-06-01"
+    assert result["posted_date"] == "2026-03-15"
+    assert result["url"] == "https://mon-vie-via.businessfrance.fr/offres/123"
 
 
-def test_parse_offer_card_missing_fields_uses_empty_string():
-    mock_card = {"title": "ML Engineer"}
-    result = parse_offer_card(mock_card)
+def test_map_offer_description_combines_fields():
+    result = map_offer(_raw_offer(missionDescription="desc part", missionProfile="profile part"))
+    assert "desc part" in result["description"]
+    assert "profile part" in result["description"]
+
+
+def test_map_offer_missing_optional_fields_use_empty_string():
+    result = map_offer({"id": 1})
+    assert result["title"] == ""
     assert result["company"] == ""
     assert result["country"] == ""
+    assert result["city"] == ""
     assert result["description"] == ""
-    assert result["url"] == ""
+    assert result["duration"] == ""
+    assert result["start_date"] == ""
+    assert result["posted_date"] == ""
+    assert result["url"] == "https://mon-vie-via.businessfrance.fr/offres/1"
 
 
-def test_parse_offer_card_strips_whitespace():
-    mock_card = {"title": "  Data Analyst  ", "company": " Airbus ", "country": "Espagne "}
-    result = parse_offer_card(mock_card)
-    assert result["title"] == "Data Analyst"
+def test_map_offer_strips_whitespace():
+    result = map_offer(_raw_offer(missionTitle="  Analyst  ", organizationName=" Airbus "))
+    assert result["title"] == "Analyst"
     assert result["company"] == "Airbus"
-    assert result["country"] == "Espagne"
 
 
-def _make_mock_card(title="Data Scientist", company="Airbus", country="Singapour",
-                    city="Singapore", duration="12 mois", start_date="01/06/2026",
-                    posted_date="15/03/2026", href="/offres/123"):
-    def make_text_el(text):
-        el = MagicMock()
-        el.inner_text.return_value = text
-        return el
-
-    link_el = MagicMock()
-    link_el.get_attribute.return_value = href
-
-    card = MagicMock()
-
-    def query_selector_side_effect(sel):
-        mapping = {
-            SELECTORS["title"]: make_text_el(title),
-            SELECTORS["company"]: make_text_el(company),
-            SELECTORS["country"]: make_text_el(country),
-            SELECTORS["city"]: make_text_el(city),
-            SELECTORS["duration"]: make_text_el(duration),
-            SELECTORS["start_date"]: make_text_el(start_date),
-            SELECTORS["posted_date"]: make_text_el(posted_date),
-            SELECTORS["description"]: make_text_el(""),
-            SELECTORS["link"]: link_el,
-        }
-        return mapping.get(sel, None)
-
-    card.query_selector.side_effect = query_selector_side_effect
-    return card
+def test_map_offer_country_lowercased():
+    result = map_offer(_raw_offer(countryName="ETATS-UNIS"))
+    assert result["country"] == "etats-unis"
 
 
-def test_extract_offers_returns_list_of_dicts():
-    page = MagicMock()
-    page.query_selector_all.return_value = [_make_mock_card()]
-    result = extract_offers_from_page(page)
-    assert isinstance(result, list)
+def _make_ctx_mock(responses: list[dict]) -> MagicMock:
+    ctx = MagicMock()
+    call_count = {"n": 0}
+
+    def post_side_effect(*args, **kwargs):
+        resp = MagicMock()
+        resp.json.return_value = responses[min(call_count["n"], len(responses) - 1)]
+        call_count["n"] += 1
+        return resp
+
+    ctx.request.post.side_effect = post_side_effect
+    return ctx
+
+
+def test_scrape_all_offers_paginates():
+    first_page = {"count": 3, "result": [_raw_offer(id=1), _raw_offer(id=2)]}
+    second_page = {"count": 3, "result": [_raw_offer(id=3)]}
+
+    with patch("scraper.sync_playwright") as mock_pw, \
+         patch("scraper.BATCH_SIZE", 2):
+        browser = MagicMock()
+        ctx = _make_ctx_mock([first_page, second_page])
+        browser.new_context.return_value = ctx
+        mock_pw.return_value.__enter__.return_value.chromium.launch.return_value = browser
+
+        result = scrape_all_offers()
+
+    assert len(result) == 3
+    assert result[0]["url"].endswith("/1")
+    assert result[2]["url"].endswith("/3")
+
+
+def test_scrape_all_offers_single_page():
+    only_page = {"count": 1, "result": [_raw_offer(id=42)]}
+
+    with patch("scraper.sync_playwright") as mock_pw, \
+         patch("scraper.BATCH_SIZE", 50):
+        browser = MagicMock()
+        ctx = _make_ctx_mock([only_page])
+        browser.new_context.return_value = ctx
+        mock_pw.return_value.__enter__.return_value.chromium.launch.return_value = browser
+
+        result = scrape_all_offers()
+
     assert len(result) == 1
-    assert result[0]["title"] == "Data Scientist"
-    assert result[0]["company"] == "Airbus"
-    assert result[0]["country"] == "Singapour"
+    assert result[0]["url"].endswith("/42")
 
 
-def test_extract_offers_converts_relative_url():
-    page = MagicMock()
-    page.query_selector_all.return_value = [_make_mock_card(href="/offres/42")]
-    result = extract_offers_from_page(page)
-    assert result[0]["url"] == "https://mon-vie-via.businessfrance.fr/offres/42"
+def test_scrape_all_offers_empty():
+    empty = {"count": 0, "result": []}
 
+    with patch("scraper.sync_playwright") as mock_pw:
+        browser = MagicMock()
+        ctx = _make_ctx_mock([empty])
+        browser.new_context.return_value = ctx
+        mock_pw.return_value.__enter__.return_value.chromium.launch.return_value = browser
 
-def test_extract_offers_keeps_absolute_url():
-    page = MagicMock()
-    page.query_selector_all.return_value = [_make_mock_card(href="https://example.com/offres/99")]
-    result = extract_offers_from_page(page)
-    assert result[0]["url"] == "https://example.com/offres/99"
+        result = scrape_all_offers()
 
-
-def test_extract_offers_empty_page():
-    page = MagicMock()
-    page.query_selector_all.return_value = []
-    result = extract_offers_from_page(page)
     assert result == []

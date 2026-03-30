@@ -1,67 +1,66 @@
 from __future__ import annotations
+import json
 
-from playwright.sync_api import sync_playwright, Page
+from playwright.sync_api import sync_playwright
 
-from config import BASE_DOMAIN, BASE_URL, MAX_SCROLL_ATTEMPTS, SCROLL_PAUSE_MS, PAGE_LOAD_TIMEOUT_MS, SELECTORS
+from config import BASE_DOMAIN, SEARCH_API_URL, BATCH_SIZE
 
-OFFER_FIELDS = ["title", "company", "country", "city", "description", "duration", "start_date", "posted_date", "url"]
+_SEARCH_HEADERS = {
+    "Content-Type": "application/json",
+    "Origin": BASE_DOMAIN,
+}
 
-
-def parse_offer_card(raw: dict) -> dict:
-    return {field: str(raw.get(field, "")).strip() for field in OFFER_FIELDS}
-
-
-def _get_element_text(card, selector: str) -> str:
-    el = card.query_selector(selector)
-    return el.inner_text().strip() if el else ""
-
-
-def extract_offers_from_page(page: Page) -> list[dict]:
-    cards = page.query_selector_all(SELECTORS["card"])
-    raw_offers = []
-    for card in cards:
-        link_el = card.query_selector(SELECTORS["link"])
-        url = link_el.get_attribute("href") if link_el else ""
-        if url and not url.startswith("http"):
-            url = f"{BASE_DOMAIN}{url}"
-        raw_offers.append(parse_offer_card({
-            "title": _get_element_text(card, SELECTORS["title"]),
-            "company": _get_element_text(card, SELECTORS["company"]),
-            "country": _get_element_text(card, SELECTORS["country"]),
-            "city": _get_element_text(card, SELECTORS["city"]),
-            "description": _get_element_text(card, SELECTORS["description"]),
-            "duration": _get_element_text(card, SELECTORS["duration"]),
-            "start_date": _get_element_text(card, SELECTORS["start_date"]),
-            "posted_date": _get_element_text(card, SELECTORS["posted_date"]),
-            "url": url,
-        }))
-    return raw_offers
+_SEARCH_PAYLOAD_BASE: dict = {
+    "sort": ["0"],
+    "activitySectorId": [],
+    "missionsTypesIds": [],
+    "missionsDurations": [],
+    "geographicZones": [],
+    "countriesIds": [],
+    "studiesLevelId": [],
+    "companiesSizes": [],
+    "specializationsIds": [],
+    "entreprisesIds": [0],
+    "missionStartDate": None,
+    "query": None,
+}
 
 
-def scroll_until_loaded(page: Page, stable_threshold: int = 3) -> None:
-    previous_count = 0
-    stable_rounds = 0
-    for _ in range(MAX_SCROLL_ATTEMPTS):
-        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        page.wait_for_timeout(SCROLL_PAUSE_MS)
-        current_count = len(page.query_selector_all(SELECTORS["card"]))
-        if current_count == previous_count:
-            stable_rounds += 1
-            if stable_rounds >= stable_threshold:
-                break
-        else:
-            stable_rounds = 0
-        previous_count = current_count
+def map_offer(raw: dict) -> dict:
+    description = (raw.get("missionDescription") or "") + " " + (raw.get("missionProfile") or "")
+    return {
+        "title": (raw.get("missionTitle") or "").strip(),
+        "company": (raw.get("organizationName") or "").strip(),
+        "country": (raw.get("countryName") or "").lower().strip(),
+        "city": (raw.get("cityName") or "").strip(),
+        "description": description.strip(),
+        "duration": str(raw.get("missionDuration") or ""),
+        "start_date": (raw.get("missionStartDate") or "")[:10],
+        "posted_date": (raw.get("creationDate") or "")[:10],
+        "expiry_date": (raw.get("endBroadcastDate") or "")[:10],
+        "url": f"{BASE_DOMAIN}/offres/{raw['id']}",
+    }
+
+
+def _search(ctx, skip: int, limit: int) -> dict:
+    payload = json.dumps({**_SEARCH_PAYLOAD_BASE, "limit": limit, "skip": skip})
+    resp = ctx.request.post(SEARCH_API_URL, data=payload, headers=_SEARCH_HEADERS)
+    return resp.json()
 
 
 def scrape_all_offers() -> list[dict]:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         try:
-            page = browser.new_page()
-            page.goto(BASE_URL, timeout=PAGE_LOAD_TIMEOUT_MS)
-            page.wait_for_selector(SELECTORS["card"], timeout=PAGE_LOAD_TIMEOUT_MS)
-            scroll_until_loaded(page)
-            return extract_offers_from_page(page)
+            ctx = browser.new_context()
+            first = _search(ctx, skip=0, limit=BATCH_SIZE)
+            total = first.get("count", 0)
+            all_raw = list(first.get("result", []))
+
+            for skip in range(BATCH_SIZE, total, BATCH_SIZE):
+                batch = _search(ctx, skip=skip, limit=BATCH_SIZE)
+                all_raw.extend(batch.get("result", []))
+
+            return [map_offer(o) for o in all_raw]
         finally:
             browser.close()

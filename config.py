@@ -8,51 +8,49 @@ def get_output_file() -> Path:
     return OUTPUT_DIR / f"offres_{date.today().isoformat()}.csv"
 
 BASE_DOMAIN = "https://mon-vie-via.businessfrance.fr"
-BASE_URL = f"{BASE_DOMAIN}/offres"
+SEARCH_API_URL = "https://civiweb-api-prd.azurewebsites.net/api/Offers/search"
 
-MAX_SCROLL_ATTEMPTS = 50
-SCROLL_PAUSE_MS = 1500
-PAGE_LOAD_TIMEOUT_MS = 30_000
+BATCH_SIZE = 50
 
 TARGET_COUNTRIES: set[str] = {
     # Asia
     "singapour", "singapore",
     "japon", "japan",
-    "corée du sud", "south korea", "korea",
+    "coree du sud", "south korea", "korea",
     "chine", "china",
     "inde", "india",
-    "thaïlande", "thailand",
-    "vietnam", "viêt nam",
+    "thailande", "thailand",
+    "vietnam", "viet nam",
     "hong kong",
-    "taïwan", "taiwan",
+    "taiwan",
     "malaisie", "malaysia",
-    "indonésie", "indonesia",
+    "indonesie", "indonesia",
     "philippines",
     "australie", "australia",
-    "nouvelle-zélande", "new zealand",
+    "nouvelle-zelande", "new zealand",
     # Mediterranean Europe
     "espagne", "spain",
     "italie", "italy",
     "portugal",
-    "grèce", "greece",
+    "grece", "greece",
     "maroc", "morocco",
     "tunisie", "tunisia",
-    "algérie", "algeria",
-    "égypte", "egypt",
+    "algerie", "algeria",
+    "egypte", "egypt",
     "turquie", "turkey",
     "croatie", "croatia",
     "malte", "malta",
     "chypre", "cyprus",
     # North America
-    "états-unis", "united states", "usa",
+    "etats-unis", "united states", "usa",
     "canada",
     # South America
-    "brésil", "brazil",
+    "bresil", "brazil",
     "argentine", "argentina",
     "mexique", "mexico",
     "colombie", "colombia",
     "chili", "chile",
-    "pérou", "peru",
+    "perou", "peru",
     "uruguay",
 }
 
@@ -91,21 +89,7 @@ PROFILE_KEYWORDS: list[str] = [
     "forecasting",
     "supply chain",
     "recommendation system",
-    "données",
+    "donnees",
     "apprentissage automatique",
-    "modèle",
+    "modele",
 ]
-
-# Placeholder selectors — fill in real values in Task 8 after browser inspection
-SELECTORS = {
-    "card": ".offre-card",
-    "title": ".offre-card__title",
-    "company": ".offre-card__company",
-    "country": ".offre-card__country",
-    "city": ".offre-card__city",
-    "duration": ".offre-card__duration",
-    "start_date": ".offre-card__start-date",
-    "posted_date": ".offre-card__posted-date",
-    "description": ".offre-card__description",
-    "link": "a",
-}

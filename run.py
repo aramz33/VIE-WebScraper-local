@@ -6,7 +6,7 @@ from scraper import scrape_all_offers
 
 CSV_COLUMNS: list[str] = [
     "score", "matched_keywords", "title", "company",
-    "country", "city", "duration", "start_date", "posted_date", "url", "description",
+    "country", "city", "duration", "start_date", "posted_date", "expiry_date", "url", "description",
 ]
 
 
