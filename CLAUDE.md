@@ -1,8 +1,8 @@
-@~/.claude/rules/python/coding-style.md
-@~/.claude/rules/python/testing.md
-@~/.claude/rules/python/patterns.md
-@~/.claude/rules/python/security.md
-@~/.claude/rules/python/hooks.md
+@~/.claude/lang-rules/python/coding-style.md
+@~/.claude/lang-rules/python/testing.md
+@~/.claude/lang-rules/python/patterns.md
+@~/.claude/lang-rules/python/security.md
+@~/.claude/lang-rules/python/hooks.md
 
 # CLAUDE.md
 
