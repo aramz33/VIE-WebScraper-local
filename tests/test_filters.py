@@ -9,8 +9,8 @@ def test_accepts_spain():
     assert is_target_country("Espagne") is True
 
 
-def test_accepts_usa():
-    assert is_target_country("États-Unis") is True
+def test_accepts_china():
+    assert is_target_country("Chine") is True
 
 
 def test_accepts_brazil():
@@ -98,7 +98,7 @@ def test_filter_offers_removes_zero_score():
 
 def test_filter_offers_sorted_by_score_desc():
     offers = [
-        {"title": "Python Developer", "description": "python api rest", "country": "Canada"},
+        {"title": "Python Developer", "description": "python api rest", "country": "Japon"},
         {"title": "ML Engineer", "description": "machine learning deep learning python nlp aws cloud data science", "country": "Singapour"},
     ]
     result = filter_offers(offers)
