@@ -5,8 +5,8 @@ def test_accepts_singapore():
     assert is_target_country("Singapour") is True
 
 
-def test_accepts_spain():
-    assert is_target_country("Espagne") is True
+def test_accepts_canada():
+    assert is_target_country("Canada") is True
 
 
 def test_accepts_china():
@@ -35,7 +35,7 @@ def test_rejects_empty_string():
 
 def test_case_insensitive():
     assert is_target_country("SINGAPOUR") is True
-    assert is_target_country("espagne") is True
+    assert is_target_country("canada") is True
 
 
 def test_score_offer_matches_python():
