@@ -1,0 +1,37 @@
+name: Daily VIE scraper
+
+on:
+  schedule:
+    - cron: "0 4 * * *"   # 06:00 Paris (summer) / 05:00 (winter); before the 07:01 monitor
+  workflow_dispatch: {}
+
+jobs:
+  scrape-and-email:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Run scraper
+        run: python run.py --profile adam
+
+      - name: Send email
+        env:
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_APP_PASSWORD: ${{ secrets.MAIL_APP_PASSWORD }}
+          MAIL_TO: adam.ramsis.2@gmail.com
+        run: python send_email.py --profile adam --to "$MAIL_TO"
