@@ -111,3 +111,34 @@ def test_clotilde_duration_max_is_12():
 
 def test_adam_duration_max_is_24():
     assert ADAM.duration_max == 24
+
+
+@pytest.mark.parametrize("country", [
+    "etats-unis",
+    "united states",
+    "usa",
+    "canada",
+    "mexique",
+    "mexico",
+])
+def test_adam_excludes_north_america(country):
+    assert country not in ADAM.countries
+
+
+@pytest.mark.parametrize("keyword", [
+    "data scientist",
+    "ai engineer",
+    "ml engineer",
+    "machine learning engineer",
+    "solutions architect",
+    "associate solutions architect",
+    "pre-sales engineer",
+    "forward deployed engineer",
+    "fde",
+    "customer success engineer",
+    "customer success architect",
+    "ai consultant",
+    "technology consultant",
+])
+def test_adam_includes_target_ai_data_roles(keyword):
+    assert keyword in ADAM.keywords

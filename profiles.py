@@ -2,6 +2,12 @@ from dataclasses import dataclass
 
 from config import TARGET_COUNTRIES, PROFILE_KEYWORDS
 
+ADAM_EXCLUDED_COUNTRIES = frozenset({
+    "etats-unis", "united states", "usa",
+    "canada",
+    "mexique", "mexico",
+})
+
 
 @dataclass(frozen=True)
 class UserProfile:
@@ -115,7 +121,7 @@ PROFILES: dict[str, UserProfile] = {
     ),
     "adam": UserProfile(
         name="adam",
-        countries=frozenset(TARGET_COUNTRIES),
+        countries=frozenset(TARGET_COUNTRIES) - ADAM_EXCLUDED_COUNTRIES,
         keywords=tuple(PROFILE_KEYWORDS),
         duration_max=24,
     ),

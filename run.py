@@ -1,7 +1,10 @@
 import argparse
+import re
 from pathlib import Path
 
 import pandas as pd
+
+_ILLEGAL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 from config import OUTPUT_DIR
 from filters import filter_offers
@@ -110,7 +113,11 @@ def main() -> None:
     df.to_csv(csv_file, index=False, encoding="utf-8")
     print(f"  → Saved to {csv_file}")
 
-    df.to_excel(xlsx_file, index=False, engine="openpyxl")
+    df_clean = df.apply(
+        lambda col: col.map(lambda v: _ILLEGAL_CHARS_RE.sub("", v) if isinstance(v, str) else v)
+        if col.dtype == object else col
+    )
+    df_clean.to_excel(xlsx_file, index=False, engine="openpyxl")
     print(f"  → Saved to {xlsx_file}")
 
 
