@@ -10,10 +10,10 @@ from html import escape
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-MAX_OFFERS = 20
 PARIS_TZ = ZoneInfo("Europe/Paris")
 SUBJECT_PREFIX = "VIE Offers"
 EMAIL_COLUMNS = (
+    "posted_date",
     "score",
     "title",
     "company",
@@ -23,29 +23,42 @@ EMAIL_COLUMNS = (
     "start_date",
     "url",
 )
+ATTACHMENTS = (
+    ("offres.xlsx", "application", "vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+    ("offres.csv", "text", "csv"),
+)
 
 
 def _paris_today() -> date:
     return datetime.now(PARIS_TZ).date()
 
 
-def _is_blank(value: str | None) -> bool:
-    return not (value or "").strip()
+def _posted_date(row: dict[str, str]) -> date:
+    value = (row.get("posted_date") or "").strip()
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return date.min
 
 
-def load_unapplied_offers(profile: str, base_dir: Path = Path("output"), limit: int = MAX_OFFERS) -> list[dict[str, str]]:
+def load_offers(profile: str, base_dir: Path = Path("output")) -> list[dict[str, str]]:
     csv_path = base_dir / profile / "offres.csv"
     if not csv_path.exists() or csv_path.stat().st_size == 0:
         return []
 
     with csv_path.open(newline="", encoding="utf-8") as fh:
-        rows = [
-            row
-            for row in csv.DictReader(fh)
-            if _is_blank(row.get("applied"))
-        ]
+        rows = list(csv.DictReader(fh))
 
-    return rows[:limit]
+    return sorted(rows, key=_posted_date, reverse=True)
+
+
+def output_attachments(profile: str, base_dir: Path = Path("output")) -> list[tuple[Path, str, str]]:
+    output_dir = base_dir / profile
+    return [
+        (path, maintype, subtype)
+        for filename, maintype, subtype in ATTACHMENTS
+        if (path := output_dir / filename).exists()
+    ]
 
 
 def _profile_label(profile: str) -> str:
@@ -60,16 +73,24 @@ def _plain_body(rows: list[dict[str, str]], today: date) -> str:
     if not rows:
         return f"No new matching VIE offers today.\n\nDate: {today.isoformat()}\n"
 
-    lines = [f"{len(rows)} new matching VIE offers as of {today.isoformat()}:", ""]
+    lines = [
+        f"{len(rows)} matching VIE offers as of {today.isoformat()}, sorted by most recent posted date:",
+        "",
+    ]
     for row in rows:
         title = row.get("title", "").strip() or "(untitled)"
         company = row.get("company", "").strip()
         country = row.get("country", "").strip()
         city = row.get("city", "").strip()
         score = row.get("score", "").strip()
+        posted_date = row.get("posted_date", "").strip()
         url = row.get("url", "").strip()
         location = ", ".join(part for part in (city, country) if part)
-        meta = " | ".join(part for part in (company, location, f"score {score}" if score else "") if part)
+        meta = " | ".join(
+            part
+            for part in (posted_date, company, location, f"score {score}" if score else "")
+            if part
+        )
         lines.append(f"- {title}" + (f" ({meta})" if meta else ""))
         if url:
             lines.append(f"  {url}")
@@ -104,7 +125,8 @@ def _html_body(rows: list[dict[str, str]], today: date) -> str:
     return (
         "<!doctype html>"
         "<html><body>"
-        f"<p>{len(rows)} new matching VIE offers as of {escape(today.isoformat())}.</p>"
+        f"<p>{len(rows)} matching VIE offers as of {escape(today.isoformat())}, "
+        "sorted by most recent posted date.</p>"
         '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse;">'
         f"<thead><tr>{header_cells}</tr></thead>"
         f"<tbody>{''.join(body_rows)}</tbody>"
@@ -113,7 +135,14 @@ def _html_body(rows: list[dict[str, str]], today: date) -> str:
     )
 
 
-def build_message(profile: str, to_addr: str, from_addr: str, rows: list[dict[str, str]], today: date | None = None) -> EmailMessage:
+def build_message(
+    profile: str,
+    to_addr: str,
+    from_addr: str,
+    rows: list[dict[str, str]],
+    today: date | None = None,
+    attachments: list[tuple[Path, str, str]] | None = None,
+) -> EmailMessage:
     message_date = today or _paris_today()
     msg = EmailMessage()
     msg["Subject"] = _subject(profile, message_date)
@@ -121,6 +150,15 @@ def build_message(profile: str, to_addr: str, from_addr: str, rows: list[dict[st
     msg["To"] = to_addr
     msg.set_content(_plain_body(rows, message_date))
     msg.add_alternative(_html_body(rows, message_date), subtype="html")
+
+    for path, maintype, subtype in attachments or []:
+        msg.add_attachment(
+            path.read_bytes(),
+            maintype=maintype,
+            subtype=subtype,
+            filename=path.name,
+        )
+
     return msg
 
 
@@ -141,8 +179,8 @@ def main() -> None:
     if not username or not app_password:
         raise SystemExit("MAIL_USERNAME and MAIL_APP_PASSWORD must be set.")
 
-    rows = load_unapplied_offers(args.profile)
-    msg = build_message(args.profile, args.to, username, rows)
+    rows = load_offers(args.profile)
+    msg = build_message(args.profile, args.to, username, rows, attachments=output_attachments(args.profile))
     send_message(msg, username, app_password)
 
 
