@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from config import TARGET_COUNTRIES, PROFILE_KEYWORDS
 
 ADAM_EXCLUDED_COUNTRIES = frozenset({
-    "etats-unis", "united states", "usa",
     "canada",
     "mexique", "mexico",
 })

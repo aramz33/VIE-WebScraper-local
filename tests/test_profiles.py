@@ -117,11 +117,17 @@ def test_adam_duration_max_is_24():
     "etats-unis",
     "united states",
     "usa",
+])
+def test_adam_includes_united_states(country):
+    assert country in ADAM.countries
+
+
+@pytest.mark.parametrize("country", [
     "canada",
     "mexique",
     "mexico",
 ])
-def test_adam_excludes_north_america(country):
+def test_adam_excludes_remaining_north_america(country):
     assert country not in ADAM.countries
 
 
